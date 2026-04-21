@@ -1,0 +1,34 @@
+* 74LS90 DECADE COUNTER (CREATED BY GOKUL P ,BE I&CE ,PSG TECH)
+* Optimized to prevent Singular Matrix, Numerical Blowup, and Logic Loops.
+* Pin Order: INA INB R01 R02 R91 R92 GND VCC QA QB QC QD
+.subckt 74LS90 INA INB R01 R02 R91 R92 GND VCC QA QB QC QD
+
+* 1. MASTER RESET / MASTER SET LOGIC
+* MS (Master Set to 9) takes priority.
+Bms ms 0 V=if(V(R91)>1.5 & V(R92)>1.5, 1, 0)
+Bmr mr 0 V=if(V(R01)>1.5 & V(R02)>1.5 & V(ms)<0.5, 1, 0)
+
+* 2. SECTION A: DIVIDE-BY-2 (QA)
+* Toggles on falling edge of INA (detected via 1us delay)
+Bta ta 0 V=if(V(INA)<1.5 & delay(V(INA),1u)>1.5, 1, 0)
+Bqa_i qa_i 0 V=if(V(ms)>0.5, 1, if(V(mr)>0.5, 0, if(V(ta)>0.5, 1-delay(V(qa_s),2u), V(qa_s))))
+Rqa qa_i qa_s 100
+Cqa qa_s 0 1n ic=0
+
+* 3. SECTION B: DIVIDE-BY-5 (QB, QC, QD)
+* Decade state machine (N counts 0 to 4)
+Btb tb 0 V=if(V(INB)<1.5 & delay(V(INB),1u)>1.5, 1, 0)
+Bn_i n_i 0 V=if(V(ms)>0.5, 4, if(V(mr)>0.5, 0, if(V(tb)>0.5, if(delay(V(n_s),2u)>=4, 0, delay(V(n_s),2u)+1), V(n_s))))
+Rn n_i n_s 100
+Cn n_s 0 1n ic=0
+
+* 4. OUTPUT STAGE (BCD Decoding and Scaling to VCC)
+Bouta QA GND V=V(VCC)*V(qa_s)
+* QB = 1 at N values 1 and 3 (001, 011)
+Boutb QB GND V=V(VCC)*if(V(n_s)>0.5 & V(n_s)<1.5 | V(n_s)>2.5 & V(n_s)<3.5, 1, 0)
+* QC = 1 at N values 2 and 3 (010, 011)
+Boutc QC GND V=V(VCC)*if(V(n_s)>1.5 & V(n_s)<3.5, 1, 0)
+* QD = 1 at N value 4 (100)
+Boutd QD GND V=V(VCC)*if(V(n_s)>3.5, 1, 0)
+
+.ends 74LS90
