@@ -1,0 +1,40 @@
+* 74LS93 (CREATED BY GOKUL P ,BE I&CE ,PSG TECH)
+* Fixed: Eliminates 150V spikes and numerical instability.
+* Pin Order: INA INB R01 R02 GND VCC QA QB QC QD
+.subckt 74LS93 INA INB R01 R02 GND VCC QA QB QC QD
+
+* 1. MASTER RESET (Logic High > 1.5V)
+Bmr mr 0 V=if(V(R01)>1.5 & V(R02)>1.5, 1, 0)
+
+* 2. SECTION A: DIVIDE-BY-2 (QA)
+* Falling edge trigger: Compare current clock to clock 1us ago
+Bta ta 0 V=if(V(INA)<1.5 & delay(V(INA),1u)>1.5, 1, 0)
+* Toggle logic: Looks at the state 2us ago to prevent algebraic loops
+Bqa_i qa_i 0 V=if(V(mr)>0.5, 0, if(V(ta)>0.5, 1-delay(V(qa_s),2u), V(qa_s)))
+Rqa qa_i qa_s 100
+Cqa qa_s 0 1n ic=0
+Bouta QA GND V=V(VCC)*V(qa_s)
+
+* 3. SECTION B: DIVIDE-BY-8 (QB, QC, QD)
+* QB (Clocked by INB)
+Btb tb 0 V=if(V(INB)<1.5 & delay(V(INB),1u)>1.5, 1, 0)
+Bqb_i qb_i 0 V=if(V(mr)>0.5, 0, if(V(tb)>0.5, 1-delay(V(qb_s),2u), V(qb_s)))
+Rqb qb_i qb_s 100
+Cqb qb_s 0 1n ic=0
+Boutb QB GND V=V(VCC)*V(qb_s)
+
+* QC (Clocked by internal QB)
+Btc tc 0 V=if(V(qb_s)<0.5 & delay(V(qb_s),1u)>0.5, 1, 0)
+Bqc_i qc_i 0 V=if(V(mr)>0.5, 0, if(V(tc)>0.5, 1-delay(V(qc_s),2u), V(qc_s)))
+Rqc qc_i qc_s 100
+Cqc qc_s 0 1n ic=0
+Boutc QC GND V=V(VCC)*V(qc_s)
+
+* QD (Clocked by internal QC)
+Btd td 0 V=if(V(qc_s)<0.5 & delay(V(qc_s),1u)>0.5, 1, 0)
+Bqd_i qd_i 0 V=if(V(mr)>0.5, 0, if(V(td)>0.5, 1-delay(V(qd_s),2u), V(qd_s)))
+Rqd qd_i qd_s 100
+Cqd qd_s 0 1n ic=0
+Boutd QD GND V=V(VCC)*V(qd_s)
+
+.ends 74LS93
