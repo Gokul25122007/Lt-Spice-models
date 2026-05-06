@@ -1,0 +1,28 @@
+* JK FLIP-FLOP (Created by Gokul.P)
+* Solves LTspice max timestep skipping AND cascading race conditions.
+* Pin Order: J K CLK Q QN VCC GND
+.subckt JKFF J K CLK Q QN VCC GND
+
+* 1. INPUT NORMALIZATION (Treats anything > 2.5V as Logic 1)
+Bj_n j_n 0 V=if(V(J)>2.5, 1, 0)
+Bk_n k_n 0 V=if(V(K)>2.5, 1, 0)
+Bclk_n c_n 0 V=if(V(CLK)>2.5, 1, 0)
+
+* 2. FALLING EDGE DETECTOR (1us window - wide enough for LTspice to see)
+Bed ed 0 V=if(V(c_n)<0.5 & delay(V(c_n),1u)>0.5, 1, 0)
+
+* 3. TIME-TRAVEL SAMPLING (Looks 2us into the past to prevent race conditions)
+B_j_sample js 0 V=delay(V(j_n), 2u)
+B_k_sample ks 0 V=delay(V(k_n), 2u)
+B_q_sample qs 0 V=delay(V(q_s), 2u)
+
+* 4. STATE MACHINE (Evaluates based strictly on the stable past states)
+Bq_i q_i 0 V=if(V(ed)>0.5, if(V(js)>0.5, if(V(ks)>0.5, 1-V(qs), 1), if(V(ks)>0.5, 0, V(qs))), V(q_s))
+Rq q_i q_s 100
+Cq q_s 0 1n ic=0
+
+* 5. OUTPUT BUFFERING (Scales to VCC)
+Bq Q GND V=V(VCC)*V(q_s)
+Bqn QN GND V=V(VCC)*(1-V(q_s))
+
+.ends JKFF
