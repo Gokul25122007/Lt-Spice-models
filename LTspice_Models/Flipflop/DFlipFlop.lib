@@ -1,0 +1,25 @@
+* D FLIP-FLOP (Created by Gokul.P)
+* Internal sampling prevents race conditions automatically.
+* Pin Order: D CLK Q QN VCC GND
+.subckt DFlipFlop D CLK Q QN VCC GND
+
+* 1. INPUT NORMALIZATION
+Bd_n d_n 0 V=if(V(D)>2.5, 1, 0)
+Bclk_n c_n 0 V=if(V(CLK)>2.5, 1, 0)
+
+* 2. FALLING EDGE DETECTOR (1ns window)
+Bed ed 0 V=if(V(c_n)<0.5 & delay(V(c_n), 1n)>0.5, 1, 0)
+
+* 3. TIME-TRAVEL SAMPLING (Looks 2ns into the past, replacing the need for td=10n)
+B_d_sample ds 0 V=delay(V(d_n), 2n)
+
+* 4. STATE MACHINE 
+Bq_i q_i 0 V=if(V(ed)>0.5, V(ds), V(q_s))
+Rq q_i q_s 10
+Cq q_s 0 10p ic=0
+
+* 5. OUTPUT BUFFERING
+Bq Q GND V=V(VCC)*V(q_s)
+Bqn QN GND V=V(VCC)*(1-V(q_s))
+
+.ends DFlipFlop
